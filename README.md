@@ -1,5 +1,8 @@
 ## Zapret Launcher for Discord/YouTube (Windows)
 
+### Скачать
+- [Скачать последнюю версию лаунчера](https://github.com/KidTheFelon/zapret_launcher/releases/latest)
+
 Универсальный лаунчер: `discord.bat` (запуск и обход DPI) и `update_checker.bat` (автообновление релизов и ipset).
 
 > Важно: это не оригинальный репозиторий. Скрипты синхронизируются с upstream-проектом (`Flowseal/zapret-discord-youtube`) — версии и архив берутся из его релизов, ipset — из его служебных файлов. Этот репозиторий — упрощённая оболочка (launcher + автообновление) над upstream.
