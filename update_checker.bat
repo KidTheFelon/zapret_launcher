@@ -32,12 +32,19 @@ set "LOCAL_VERSION=%LOCAL_VERSION: =%"
 set "LOCAL_VERSION=%LOCAL_VERSION:`r=%"
 set "LOCAL_VERSION=%LOCAL_VERSION:`n=%"
 
+rem Network diagnostics
+echo [DIAGNOSTICS] Testing network connectivity...
+ping -n 1 8.8.8.8 >nul 2>&1
+if !errorlevel! neq 0 (
+    echo [WARNING] No internet connection detected
+)
+
 rem Downloading current version from GitHub
 echo [DOWNLOAD] Downloading current version from GitHub...
 if exist "%SystemRoot%\System32\curl.exe" (
-    curl -L -o "%VERSION_FILE%" "%GITHUB_VERSION_FILE_URL%" >nul 2>&1
+    curl -L --connect-timeout 10 --max-time 30 -o "%VERSION_FILE%" "%GITHUB_VERSION_FILE_URL%" >nul 2>&1
 ) else (
-    powershell -NoProfile -ExecutionPolicy Bypass -Command "$url='%GITHUB_VERSION_FILE_URL%';$out='%VERSION_FILE%';try{Invoke-WebRequest -Uri $url -OutFile $out -TimeoutSec 10 ^| Out-Null}catch{exit 1}"
+    powershell -NoProfile -ExecutionPolicy Bypass -Command "$url='%GITHUB_VERSION_FILE_URL%';$out='%VERSION_FILE%';try{Invoke-WebRequest -Uri $url -OutFile $out -TimeoutSec 15 -UseBasicParsing ^| Out-Null}catch{Write-Host '[ERROR] Network timeout or blocked'; exit 1}"
 
 )
 
@@ -47,7 +54,7 @@ if exist "%VERSION_FILE%" (
     for /f "delims=" %%A in ('type "%VERSION_FILE%"') do set "GITHUB_VERSION=%%A"
 ) else (
     echo [INFO] Downloading version from GitHub directly
-    for /f "delims=" %%A in ('powershell -command "(Invoke-WebRequest -Uri \"%GITHUB_VERSION_URL%\" -Headers @{\"Cache-Control\"=\"no-cache\"} -TimeoutSec 10).Content.Trim()" 2^>nul') do set "GITHUB_VERSION=%%A"
+    for /f "delims=" %%A in ('powershell -command "try{(Invoke-WebRequest -Uri \"%GITHUB_VERSION_URL%\" -Headers @{\"Cache-Control\"=\"no-cache\"} -TimeoutSec 15 -UseBasicParsing).Content.Trim()}catch{Write-Host '[ERROR] GitHub blocked or timeout'; exit 1}" 2^>nul') do set "GITHUB_VERSION=%%A"
 )
 
 rem Error handling
@@ -166,7 +173,7 @@ echo [DOWNLOAD] Downloading main archive...
 set "ARCHIVE_PATH=%DOWNLOAD_DIR%\zapret-discord-youtube-%GITHUB_VERSION%.zip"
 set "EXTRACT_DIR=%~dp0"
 if exist "%SystemRoot%\System32\curl.exe" (
-    curl -L -o "%ARCHIVE_PATH%" "%GITHUB_DOWNLOAD_URL%%GITHUB_VERSION%.zip"
+    curl -L --connect-timeout 15 --max-time 120 -o "%ARCHIVE_PATH%" "%GITHUB_DOWNLOAD_URL%%GITHUB_VERSION%.zip"
     if !errorlevel!==0 (
         echo [SUCCESS] Downloaded to: %ARCHIVE_PATH%
         echo [EXTRACT] Extracting to: %EXTRACT_DIR%
@@ -201,7 +208,7 @@ if exist "%SystemRoot%\System32\curl.exe" (
         exit /b 1
     )
 ) else (
-    powershell -NoProfile -ExecutionPolicy Bypass -Command "$url='%GITHUB_DOWNLOAD_URL%%GITHUB_VERSION%.zip';$out='%ARCHIVE_PATH%';$res=Invoke-WebRequest -Uri $url -OutFile $out -TimeoutSec 30;if($res.StatusCode -eq 200){Write-Host '[SUCCESS] Downloaded to:' $out}else{Write-Host '[ERROR] Download failed'; exit 1}"
+    powershell -NoProfile -ExecutionPolicy Bypass -Command "$url='%GITHUB_DOWNLOAD_URL%%GITHUB_VERSION%.zip';$out='%ARCHIVE_PATH%';try{$res=Invoke-WebRequest -Uri $url -OutFile $out -TimeoutSec 60 -UseBasicParsing;if($res.StatusCode -eq 200){Write-Host '[SUCCESS] Downloaded to:' $out}else{Write-Host '[ERROR] HTTP' $res.StatusCode; exit 1}}catch{Write-Host '[ERROR] Download timeout or blocked'; exit 1}"
     
     if !errorlevel! neq 0 (
         echo [ERROR] Download failed with PowerShell
